@@ -1,0 +1,4 @@
+[{{SITE_NAME}}]
+access.log = {{FPM_ACCESS_LOG}}
+clear_env = no
+catch_workers_output = yes
