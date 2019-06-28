@@ -130,8 +130,6 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && mv /tmp/envsubst /usr/local/bin/ \
     && apk add --no-cache tzdata
 
-COPY conf-nginx/nginx.conf /etc/nginx/nginx.conf
-
 # ----------------
 
 RUN apk -v --update add \
@@ -149,6 +147,9 @@ RUN apk -v --update add \
     rm /var/cache/apk/*
 
 # ----------------
+
+COPY conf-nginx/nginx.conf /etc/nginx/nginx.conf
+COPY conf-nginx/default.conf /etc/nginx-default.conf
 
 RUN rm -rf /usr/local/etc/php-fpm.d/*
 RUN mv /usr/local/bin/docker-entrypoint.sh /usr/local/bin/wp-entrypoint.sh

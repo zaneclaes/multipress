@@ -177,6 +177,16 @@ class Site(FileSystemEventHandler):
     self.logger = logging.getLogger(site_name)
     self.logger.setLevel(self.cfg['log_level'])
 
+    clean = [f"/etc/nginx/conf.d/{site_name}.conf", f"/usr/local/etc/php-fpm.d/{site_name}.conf"]
+    for fp in clean:
+      if os.path.isfile(fp):
+        os.remove(fp)
+
+    if len(self.cfg['server_name']) <= 0:
+      server_name = f'{site_name}.com www.{site_name}.com'
+      self.logger.info(f'no server_name for {site_name}; assuming it is "{server_name}"')
+      self.cfg['server_name'] = server_name
+
     self.backup_modes = str2list(self.cfg['backup_mode'])
     self.backup_exclude = str2list(self.cfg['backup_exclude'])
     self.quiet = not self.logger.isEnabledFor(logging.DEBUG)
@@ -186,7 +196,7 @@ class Site(FileSystemEventHandler):
     self.install()
 
     if len(self.backup_modes) > 0: self.watch_for_backup()
-    self.logger.info('succesfully configured')
+    self.logger.info(f'succesfully configured {site_name} on port {fpm_port}')
 
 # Beginning with a dictionary of default values, layer in yaml config values and finally env vars
 def load_config_vars(values, yamlfp, context = None):
@@ -202,13 +212,14 @@ def load_config_vars(values, yamlfp, context = None):
   return values
 
 # Replaces placeholders within a file using the default_cfg (or env var overrides)
-def replace_placeholders(fp):
-  with open(fp, 'r') as file: cfg = file.read()
-  with open(fp, 'w') as file:
+def replace_placeholders(fp_in, fp_out = None):
+  if not fp_out: fp_out = fp_in
+  with open(fp_in, 'r') as file: cfg = file.read()
+  with open(fp_out, 'w') as file:
     for var_name in default_cfg:
       ev = var_name.upper()
       cfg = cfg.replace("{{%s}}" % ev, os.getenv(ev, default_cfg[var_name]))
-    logging.debug(f'writing to {fp}: {cfg}')
+    logging.debug(f'writing to {fp_out}: {cfg}')
     file.write(cfg)
 
 # Execute a shell command
@@ -251,6 +262,7 @@ sites = {}
 
 if __name__ == "__main__":
   replace_placeholders('/etc/nginx/nginx.conf')
+  replace_placeholders('/etc/nginx-default.conf', '/etc/nginx/conf.d/default.conf')
   replace_placeholders('/usr/local/etc/php-fpm.d/docker.conf')
 
   fpm_port = 9000
