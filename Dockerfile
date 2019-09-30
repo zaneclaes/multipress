@@ -1,9 +1,10 @@
 FROM wordpress:php7.3-fpm-alpine
+MAINTAINER Zane Claes <zane@technicallywizardry.com>
 
-# ----------------
+# --------------------------------------------------------------------------------------------------
 # NGINX installation
 # FROM: https://github.com/nginxinc/docker-nginx/blob/master/mainline/alpine/Dockerfile
-# ----------------
+# --------------------------------------------------------------------------------------------------
 ENV NGINX_VERSION 1.15.12
 RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && CONFIG="\
@@ -130,7 +131,9 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && mv /tmp/envsubst /usr/local/bin/ \
     && apk add --no-cache tzdata
 
-# ----------------
+# --------------------------------------------------------------------------------------------------
+# Wordpress
+# --------------------------------------------------------------------------------------------------
 
 RUN apk -v --update add \
         python3 \
@@ -146,7 +149,16 @@ RUN apk -v --update add \
     pip3 install --upgrade awscli s3cmd watchdog python-magic && \
     rm /var/cache/apk/*
 
-# ----------------
+RUN apk add --no-cache freetype libpng libjpeg-turbo freetype-dev libpng-dev libjpeg-turbo-dev && \
+  docker-php-ext-configure gd \
+    --with-gd \
+    --with-freetype-dir=/usr/include/ \
+    --with-png-dir=/usr/include/ \
+    --with-jpeg-dir=/usr/include/ && \
+  NPROC=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || 1) && \
+  docker-php-ext-install -j${NPROC} gd
+
+# --------------------------------------------------------------------------------------------------
 
 COPY conf-nginx/nginx.conf /etc/nginx/nginx.conf
 COPY conf-nginx/default.conf /etc/nginx-default.conf
