@@ -14,8 +14,9 @@ class Site(FileSystemEventHandler):
 
   # Execute a backup of this site.
   def backup(self):
-    num_files = len(self.modified_files)
-    self.logger.info(f'[backup] triggered for {num_files} files')
+    cnt = len(self.modified_files)
+    sample = self.modified_files[:3]
+    self.logger.info(f'[backup] triggered for {cnt} files, including: {sample}')
     self.backup_timer = None
     self.modified_files = []
 
@@ -64,8 +65,8 @@ class Site(FileSystemEventHandler):
   # When watchdog receives a modification event, schedule a backup of the site.
   def on_any_event(self, event):
     if os.path.isdir(event.src_path): return
-    if event.src_path.endswith('.accessed'): return
-    if 'wp-content/temp-write-test' in event.src_path: return
+    if self.backup_ignore and self.backup_ignore.match(event.src_path): return
+    if event.src_path in self.modified_files: return
     self.logger.debug('received file modification event for ' + event.src_path)
     self.modified_files.append(event.src_path)
     if self.backup_timer: self.backup_timer.cancel()
@@ -86,13 +87,16 @@ class Site(FileSystemEventHandler):
   # Set up nginx & FPM for this site.
   def configure(self):
     self.logger.debug('configuring nginx, fpm, and docker')
+    listen = self.cfg['server_port']
+    if len(self.cfg['server_listen']) > 0: listen += ' ' + self.cfg['server_listen']
     nginx_cfg = OrderedDict({
-      'listen': self.cfg['server_port'],
+      'listen': listen,
       'server_name': self.cfg['server_name'],
       'root': self.cfg['site_dir'],
       'index': 'index.php',
       'access_log': self.cfg['nginx_access_log'],
       'error_log': self.cfg['nginx_error_log'],
+      'rewrite': self.cfg['rewrite'],
     })
     nginx_cfg = [f"    {k} {nginx_cfg[k]};" for k in nginx_cfg if len(nginx_cfg[k]) > 0]
     self.cfg['nginx_server_config'] = "\n".join(nginx_cfg)
@@ -162,7 +166,9 @@ class Site(FileSystemEventHandler):
     self.cfg = {
       'fpm_port': str(fpm_port),
       'server_port': "80",
+      'server_listen': "",
       'server_name': '',
+      'rewrite': '',
       'site_dir': "/var/www/html/%s" % site_name,
       'fn_zip': '%s.zip' % site_name,
       'wordpress_db_host': None,
@@ -188,6 +194,7 @@ class Site(FileSystemEventHandler):
       self.cfg['server_name'] = server_name
 
     self.backup_modes = str2list(self.cfg['backup_mode'])
+    self.backup_ignore = re.compile(self.cfg['backup_ignore']) if len(self.cfg['backup_ignore']) > 0 else None
     self.backup_exclude = str2list(self.cfg['backup_exclude'])
     self.quiet = not self.logger.isEnabledFor(logging.DEBUG)
     self.modified_files = []
@@ -241,15 +248,19 @@ default_cfg = load_config_vars({
   'log_level': 'INFO',
   'log_format': '[%(asctime)s] [%(process)d] [%(levelname)s] [%(name)s] %(message)s',
   'server_port': "80",
+  'server_listen': "",
+  'nginx_default_cfg': '',
   'nginx_access_log': '/dev/stdout main',
   'nginx_error_log': '/dev/stderr warn',
   'fpm_access_log': '/dev/stdout',
   'fpm_error_log': '/dev/stderr',
   's3_bucket': '',
+  'max_upload_size': '64M',
   'restore_policy': 'missing',
   'restore_mode': '',
   'backup_mode': '',
   'backup_exclude': '*.DS_Store',
+  'backup_ignore': "((.*temp-write-test.*)|(.*\\.txt)|(.*\\.accessed)|(.*uploads/wp-file-manager-pro.*)|(.*/wp-content/cache/.*))$",
   'backup_delay': '30.0',
   # From: https://github.com/nginx/nginx/blob/master/conf/nginx.conf
   'nginx_main_log_format': ('\'$remote_addr - $remote_user [$time_local] "$request" '
@@ -262,20 +273,41 @@ sites = {}
 
 if __name__ == "__main__":
   replace_placeholders('/etc/nginx/nginx.conf')
-  replace_placeholders('/etc/nginx-default.conf', '/etc/nginx/conf.d/default.conf')
   replace_placeholders('/usr/local/etc/php-fpm.d/docker.conf')
+  replace_placeholders('/usr/local/etc/php/conf.d/uploads.ini')
 
   fpm_port = 9000
-  sitenames = set(str2list(os.getenv('SITES', '')))
+  nginx_defaults = []
+  sitenames = str2list(os.getenv('SITES', ''))
   d = '/etc/multipress/sites'
   if os.path.isdir(d):
-    sitenames = sitenames.union(set(
-      [os.path.splitext(item)[0] for item in os.listdir(d) if os.path.isfile(os.path.join(d, item))]
-    ))
+    for item in os.listdir(d):
+      if os.path.isfile(os.path.join(d, item)):
+        n = os.path.splitext(item)[0]
+        if not n in sitenames:
+          sitenames.append(n)
   if not len(sitenames) > 0:
     raise Exception("No sites provided via the SITES enviroment variable or yaml config files")
   for site_name in sitenames:
     sites[site_name] = Site(site_name, fpm_port)
+
+    nginx_defaults.append(f"""
+    location ~ ^/{site_name}/status$ {{
+        include fastcgi_params;
+        fastcgi_pass localhost:{fpm_port};
+        fastcgi_param SCRIPT_FILENAME /var/www/html/{site_name}/status;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+    }}
+    location ~ ^/{site_name}/ping$ {{
+        include fastcgi_params;
+        fastcgi_pass localhost:{fpm_port};
+        fastcgi_param SCRIPT_FILENAME /var/www/html/{site_name}/ping;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+    }}""")
+
     fpm_port += 1
+
+  default_cfg['nginx_default_cfg'] = "\n".join(nginx_defaults)
+  replace_placeholders('/etc/nginx-default.conf', '/etc/nginx/conf.d/default.conf')
   sh('nginx -g "daemon off;" &')
   sh('exec php-fpm')

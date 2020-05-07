@@ -1,10 +1,12 @@
 [{{SITE_NAME}}]
 user = www-data
 group = www-data
-listen = 127.0.0.1:{{FPM_PORT}}
+listen = 0.0.0.0:{{FPM_PORT}}
 
 pm = dynamic
+pm.status_path = /{{SITE_NAME}}/status
+ping.path = /{{SITE_NAME}}/ping
 pm.max_children = 5
 pm.start_servers = 2
-pm.min_spare_servers = 1
-pm.max_spare_servers = 3
+pm.min_spare_servers = 2
+pm.max_spare_servers = 4

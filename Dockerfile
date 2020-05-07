@@ -5,7 +5,7 @@ MAINTAINER Zane Claes <zane@technicallywizardry.com>
 # NGINX installation
 # FROM: https://github.com/nginxinc/docker-nginx/blob/master/mainline/alpine/Dockerfile
 # --------------------------------------------------------------------------------------------------
-ENV NGINX_VERSION 1.15.12
+ENV NGINX_VERSION 1.17.0
 RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && CONFIG="\
         --prefix=/etc/nginx \
@@ -157,6 +157,14 @@ RUN apk add --no-cache freetype libpng libjpeg-turbo freetype-dev libpng-dev lib
     --with-jpeg-dir=/usr/include/ && \
   NPROC=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || 1) && \
   docker-php-ext-install -j${NPROC} gd
+
+RUN apk update && apk add php7-soap
+#libxml2-dev && \
+#    docker-php-ext-install xml && \
+#    docker-php-ext-install soap
+
+RUN cp /usr/lib/php7/modules/soap.so /usr/local/lib/php/extensions/no-debug-non-zts-20180731/
+RUN rm -rf /var/cache/apk/*
 
 # --------------------------------------------------------------------------------------------------
 
