@@ -169,8 +169,8 @@ RUN rm -rf /var/cache/apk/*
 # --------------------------------------------------------------------------------------------------
 
 ENV DATADOG_VERSION 0.44.1
-RUN wget "https://github.com/DataDog/dd-trace-php/releases/download/$DATADOG_VERSION/datadog-php-tracer_$DATADOG_VERSION_noarch.apk" && \
-    apk add "datadog-php-tracer_$DATADOG_VERSION_noarch.apk" --allow-untrusted
+RUN wget "https://github.com/DataDog/dd-trace-php/releases/download/${DATADOG_VERSION}/datadog-php-tracer_${DATADOG_VERSION}_noarch.apk" && \
+    apk add "datadog-php-tracer_${DATADOG_VERSION}_noarch.apk" --allow-untrusted
 
 # --------------------------------------------------------------------------------------------------
 

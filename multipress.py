@@ -260,7 +260,7 @@ default_cfg = load_config_vars({
   'restore_mode': '',
   'backup_mode': '',
   'backup_exclude': '*.DS_Store',
-  'backup_ignore': "((.*temp-write-test.*)|(.*\\.txt)|(.*\\.accessed)|(.*uploads/wp-file-manager-pro.*)|(.*/wp-content/cache/.*))$",
+  'backup_ignore': "((.*temp-write-test.*)|(.*\\.txt)|(.*\\.accessed)|(.*uploads/wp-file-manager-pro.*)|(.*/wp-content/cache/.*)|(.*/sitemap-cache/.*))$",
   'backup_delay': '30.0',
   # From: https://github.com/nginx/nginx/blob/master/conf/nginx.conf
   'nginx_main_log_format': ('\'$remote_addr - $remote_user [$time_local] "$request" '
