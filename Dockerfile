@@ -176,6 +176,7 @@ RUN wget "https://github.com/DataDog/dd-trace-php/releases/download/${DATADOG_VE
 
 COPY conf-nginx/nginx.conf /etc/nginx/nginx.conf
 COPY conf-nginx/default.conf /etc/nginx-default.conf
+COPY conf-nginx/status.conf /etc/nginx/conf.d/status.conf
 
 RUN rm -rf /usr/local/etc/php-fpm.d/*
 RUN mv /usr/local/bin/docker-entrypoint.sh /usr/local/bin/wp-entrypoint.sh
