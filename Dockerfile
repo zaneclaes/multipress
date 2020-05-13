@@ -1,11 +1,46 @@
 FROM wordpress:php7.3-fpm-alpine
 MAINTAINER Zane Claes <zane@technicallywizardry.com>
 
+# https://github.com/opentracing-contrib/nginx-opentracing/issues/72
+ENV NGINX_VERSION 1.17.0
+ENV NGINX_OPENTRACING_VERSION="v0.9.0"
+ENV NGINX_OPENTRACING_CPP_VERSION="v1.5.1"
+ENV DATADOG_OPENTRACING_VERSION="v1.1.4"
+ENV ZIPKIN_OPENTRACING_VERSION="v0.5.2"
+
+ENV MAKEFLAGS="-j4"
+
+RUN apk --update add tar build-base gcompat linux-headers pcre-dev zlib-dev \
+    gettext openssl-dev git cmake curl curl-dev msgpack-c-dev
+
+RUN mkdir -p /usr/src/app
+
+RUN cd /usr/src/app && \
+    git clone -b $NGINX_OPENTRACING_CPP_VERSION https://github.com/opentracing/opentracing-cpp.git && \
+    cd opentracing-cpp && \
+    mkdir .build && cd .build && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF .. && \
+    make && make install
+RUN cd /usr/src/app && \
+    git clone -b $DATADOG_OPENTRACING_VERSION https://github.com/DataDog/dd-opentracing-cpp && \
+    cd dd-opentracing-cpp && \
+    mkdir .build && cd .build && \
+    cmake .. && \
+    make && make install
+RUN cd /usr/src/app && \
+    git clone -b $ZIPKIN_OPENTRACING_VERSION https://github.com/rnburn/zipkin-cpp-opentracing.git && \
+    cd zipkin-cpp-opentracing && \
+    mkdir .build && cd .build && \
+    cmake -DBUILD_SHARED_LIBS=1 -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF .. && \
+    make && make install
+RUN cd /usr/src/app && \
+    git clone https://github.com/opentracing-contrib/nginx-opentracing.git
+
 # --------------------------------------------------------------------------------------------------
 # NGINX installation
 # FROM: https://github.com/nginxinc/docker-nginx/blob/master/mainline/alpine/Dockerfile
 # --------------------------------------------------------------------------------------------------
-ENV NGINX_VERSION 1.17.0
+
 RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && CONFIG="\
         --prefix=/etc/nginx \
@@ -51,6 +86,7 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
         --with-compat \
         --with-file-aio \
         --with-http_v2_module \
+        --add-dynamic-module=/usr/src/app/nginx-opentracing/opentracing \
     " \
     && addgroup -S nginx \
     && adduser -D -S -h /var/cache/nginx -s /sbin/nologin -G nginx nginx \
@@ -168,6 +204,13 @@ RUN rm -rf /var/cache/apk/*
 
 # --------------------------------------------------------------------------------------------------
 
+ENV DATADOG_VERSION 0.44.1
+RUN export DD_TRACE_PHP_BIN=$(which php-fpm) && \
+    wget "https://github.com/DataDog/dd-trace-php/releases/download/${DATADOG_VERSION}/datadog-php-tracer_${DATADOG_VERSION}_noarch.apk" && \
+    apk add "datadog-php-tracer_${DATADOG_VERSION}_noarch.apk" --allow-untrusted
+
+# --------------------------------------------------------------------------------------------------
+
 COPY conf-nginx/nginx.conf /etc/nginx/nginx.conf
 COPY conf-nginx/default.conf /etc/nginx-default.conf
 COPY conf-nginx/status.conf /etc/nginx/conf.d/status.conf
@@ -180,19 +223,6 @@ COPY conf-php/ /usr/local/etc/php/conf.d
 COPY templates/ /usr/local/etc/templates
 COPY conf-php-fpm/ /usr/local/etc/php-fpm.d
 
-# --------------------------------------------------------------------------------------------------
-
-ENV DATADOG_VERSION 0.44.1
-RUN export DD_TRACE_PHP_BIN=$(which php-fpm) && \
-    wget "https://github.com/DataDog/dd-trace-php/releases/download/${DATADOG_VERSION}/datadog-php-tracer_${DATADOG_VERSION}_noarch.apk" && \
-    apk add "datadog-php-tracer_${DATADOG_VERSION}_noarch.apk" --allow-untrusted
-
-ENV OPENTRACING_NGINX_VERSION v0.9.0
-ENV DD_OPENTRACING_CPP_VERSION v1.1.4
-RUN wget https://github.com/opentracing-contrib/nginx-opentracing/releases/download/${OPENTRACING_NGINX_VERSION}/linux-amd64-nginx-${NGINX_VERSION}-ngx_http_module.so.tgz && \
-    tar zxf linux-amd64-nginx-${NGINX_VERSION}-ngx_http_module.so.tgz -C /usr/lib/nginx/modules && \
-    wget https://github.com/DataDog/dd-opentracing-cpp/releases/download/${DD_OPENTRACING_CPP_VERSION}/linux-amd64-libdd_opentracing_plugin.so.gz && \
-    gunzip linux-amd64-libdd_opentracing_plugin.so.gz -c > /usr/local/lib/libdd_opentracing_plugin.so
 
 COPY dd-config.json /etc/
 

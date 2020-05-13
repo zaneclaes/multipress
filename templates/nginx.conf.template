@@ -28,23 +28,30 @@ server {
     }
 
     location ~ \.php$ {
-        opentracing_operation_name "$request_method $uri";
-        opentracing_tag "resource.name" "/";
-        opentracing_propagate_context;
-
         try_files $uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
         fastcgi_pass localhost:{{FPM_PORT}};
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         fastcgi_param PATH_INFO $fastcgi_path_info;
+        fastcgi_param DD_TRACE_NO_AUTOLOADER true;
+        fastcgi_param DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED true;
+        fastcgi_param DD_WORDPRESS_ANALYTICS_ENABLED true;
         include fastcgi_params;
+
+        opentracing on; # Enable OpenTracing
+        opentracing_trace_locations off; # Emit only one span per request.
+        opentracing_operation_name "$request_method $host$fastcgi_script_name";
+        opentracing_tag http_user_agent $http_user_agent; # Add a tag to each trace!
+        opentracing_tag skip_cache $skip_cache;
+        # opentracing_tag "resource.name" "$host$fastcgi_script_name";
+        opentracing_propagate_context;
 
         fastcgi_cache_bypass $skip_cache;
             fastcgi_no_cache $skip_cache;
 
         fastcgi_cache multipress;
-        fastcgi_cache_valid 200 30m; # What to cache: 'Code 200' responses, for half an hour
+        fastcgi_cache_valid 200 301 302 30m; # What to cache: 'Code 200' responses, for half an hour
         add_header X-Fastcgi-Cache $upstream_cache_status; # Add header so we can see if the cache hits or misses
     }
 
