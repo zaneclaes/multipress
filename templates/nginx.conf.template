@@ -28,6 +28,10 @@ server {
     }
 
     location ~ \.php$ {
+        opentracing_operation_name "$request_method $uri";
+        opentracing_tag "resource.name" "/";
+        opentracing_propagate_context;
+
         try_files $uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
         fastcgi_pass localhost:{{FPM_PORT}};

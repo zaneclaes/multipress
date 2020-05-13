@@ -187,6 +187,15 @@ RUN export DD_TRACE_PHP_BIN=$(which php-fpm) && \
     wget "https://github.com/DataDog/dd-trace-php/releases/download/${DATADOG_VERSION}/datadog-php-tracer_${DATADOG_VERSION}_noarch.apk" && \
     apk add "datadog-php-tracer_${DATADOG_VERSION}_noarch.apk" --allow-untrusted
 
+ENV OPENTRACING_NGINX_VERSION v0.9.0
+ENV DD_OPENTRACING_CPP_VERSION v1.1.4
+RUN wget https://github.com/opentracing-contrib/nginx-opentracing/releases/download/${OPENTRACING_NGINX_VERSION}/linux-amd64-nginx-${NGINX_VERSION}-ngx_http_module.so.tgz && \
+    tar zxf linux-amd64-nginx-${NGINX_VERSION}-ngx_http_module.so.tgz -C /usr/lib/nginx/modules && \
+    wget https://github.com/DataDog/dd-opentracing-cpp/releases/download/${DD_OPENTRACING_CPP_VERSION}/linux-amd64-libdd_opentracing_plugin.so.gz && \
+    gunzip linux-amd64-libdd_opentracing_plugin.so.gz -c > /usr/local/lib/libdd_opentracing_plugin.so
+
+COPY dd-config.json /etc/
+
 COPY multipress.py /usr/local/bin/
 RUN chmod -R +x /usr/local/bin/multipress.py
 ENTRYPOINT /usr/local/bin/multipress.py

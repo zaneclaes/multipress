@@ -249,6 +249,7 @@ default_cfg = load_config_vars({
   'log_format': '[%(asctime)s] [%(process)d] [%(levelname)s] [%(name)s] %(message)s',
   'server_port': "80",
   'server_listen': "",
+  'dd_agent_host': 'localhost',
   'nginx_default_cfg': '',
   'nginx_access_log': '/dev/stdout main',
   'nginx_error_log': '/dev/stderr warn',
@@ -273,6 +274,7 @@ sites = {}
 
 if __name__ == "__main__":
   replace_placeholders('/etc/nginx/nginx.conf')
+  replace_placeholders('/etc/dd-config.json')
   replace_placeholders('/usr/local/etc/php-fpm.d/docker.conf')
   replace_placeholders('/usr/local/etc/php/conf.d/uploads.ini')
 
