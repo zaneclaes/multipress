@@ -168,12 +168,6 @@ RUN rm -rf /var/cache/apk/*
 
 # --------------------------------------------------------------------------------------------------
 
-ENV DATADOG_VERSION 0.44.1
-RUN wget "https://github.com/DataDog/dd-trace-php/releases/download/${DATADOG_VERSION}/datadog-php-tracer_${DATADOG_VERSION}_noarch.apk" && \
-    apk add "datadog-php-tracer_${DATADOG_VERSION}_noarch.apk" --allow-untrusted
-
-# --------------------------------------------------------------------------------------------------
-
 COPY conf-nginx/nginx.conf /etc/nginx/nginx.conf
 COPY conf-nginx/default.conf /etc/nginx-default.conf
 COPY conf-nginx/status.conf /etc/nginx/conf.d/status.conf
@@ -185,6 +179,13 @@ RUN sed -i '$d' /usr/local/bin/wp-entrypoint.sh
 COPY conf-php/ /usr/local/etc/php/conf.d
 COPY templates/ /usr/local/etc/templates
 COPY conf-php-fpm/ /usr/local/etc/php-fpm.d
+
+# --------------------------------------------------------------------------------------------------
+
+ENV DATADOG_VERSION 0.44.1
+RUN export DD_TRACE_PHP_BIN=$(which php-fpm) && \
+    wget "https://github.com/DataDog/dd-trace-php/releases/download/${DATADOG_VERSION}/datadog-php-tracer_${DATADOG_VERSION}_noarch.apk" && \
+    apk add "datadog-php-tracer_${DATADOG_VERSION}_noarch.apk" --allow-untrusted
 
 COPY multipress.py /usr/local/bin/
 RUN chmod -R +x /usr/local/bin/multipress.py
