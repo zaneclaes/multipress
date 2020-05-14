@@ -81,6 +81,8 @@ class Site(FileSystemEventHandler):
       for var_name in self.cfg:
         if self.cfg[var_name] and type(self.cfg[var_name]) is str:
           cfg = cfg.replace("{{%s}}" % var_name.upper(), self.cfg[var_name])
+        else:
+          cfg = cfg.replace("{{%s}}" % var_name.upper(), "")
       self.logger.debug(f'writing to {dst_fn}: {cfg}')
       dst.write(cfg)
 
@@ -168,6 +170,7 @@ class Site(FileSystemEventHandler):
       'server_port': "80",
       'server_listen': "",
       'server_name': '',
+      'fastcgi_params': '',
       'rewrite': '',
       'site_dir': "/var/www/html/%s" % site_name,
       'fn_zip': '%s.zip' % site_name,
@@ -250,6 +253,7 @@ default_cfg = load_config_vars({
   'server_port': "80",
   'server_listen': "",
   'dd_agent_host': 'localhost',
+  'fastcgi_params': '',
   'nginx_default_cfg': '',
   'nginx_access_log': '/dev/stdout main',
   'nginx_error_log': '/dev/stderr warn',

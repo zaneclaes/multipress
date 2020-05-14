@@ -27,6 +27,10 @@ server {
         try_files $uri $uri/ /index.php?$args;
     }
 
+    location ~ /xmlrpc\.php {
+        deny all;
+    }
+
     location ~ \.php$ {
         try_files $uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
@@ -40,6 +44,7 @@ server {
         fastcgi_param DD_TRACE_REPORT_HOSTNAME "true";
         fastcgi_param DD_TRACE_PHP_BIN "/usr/local/sbin/php-fpm";
         fastcgi_param DD_TRACE_ANALYTICS_ENABLED "true";
+{{FASTCGI_PARAMS}}
         include fastcgi_params;
 
         opentracing on; # Enable OpenTracing
