@@ -34,15 +34,18 @@ server {
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         fastcgi_param PATH_INFO $fastcgi_path_info;
-        fastcgi_param DD_TRACE_NO_AUTOLOADER true;
-        fastcgi_param DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED true;
-        fastcgi_param DD_WORDPRESS_ANALYTICS_ENABLED true;
+        fastcgi_param DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED "true";
+        fastcgi_param DD_WORDPRESS_ANALYTICS_ENABLED "true";
+        fastcgi_param DD_TRACE_ENABLED "true";
+        fastcgi_param DD_TRACE_REPORT_HOSTNAME "true";
+        fastcgi_param DD_TRACE_PHP_BIN "/usr/local/sbin/php-fpm";
+        fastcgi_param DD_TRACE_ANALYTICS_ENABLED "true";
         include fastcgi_params;
 
         opentracing on; # Enable OpenTracing
         opentracing_trace_locations off; # Emit only one span per request.
-        opentracing_operation_name "$request_method $host$fastcgi_script_name";
-        opentracing_tag http_user_agent $http_user_agent; # Add a tag to each trace!
+        opentracing_operation_name "$request_method $fastcgi_script_name";
+        opentracing_tag http_user_agent $http_user_agent;
         opentracing_tag skip_cache $skip_cache;
         # opentracing_tag "resource.name" "$host$fastcgi_script_name";
         opentracing_propagate_context;

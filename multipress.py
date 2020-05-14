@@ -295,15 +295,21 @@ if __name__ == "__main__":
 
     nginx_defaults.append(f"""
     location ~ ^/{site_name}/status$ {{
+        opentracing off; # Disable OpenTracing
+
         include fastcgi_params;
         fastcgi_pass localhost:{fpm_port};
         fastcgi_param SCRIPT_FILENAME /var/www/html/{site_name}/status;
+        fastcgi_param DD_TRACE_ENABLED "false";
         fastcgi_param PATH_INFO $fastcgi_path_info;
     }}
     location ~ ^/{site_name}/ping$ {{
+        opentracing off; # Disable OpenTracing
+
         include fastcgi_params;
         fastcgi_pass localhost:{fpm_port};
         fastcgi_param SCRIPT_FILENAME /var/www/html/{site_name}/ping;
+        fastcgi_param DD_TRACE_ENABLED "false";
         fastcgi_param PATH_INFO $fastcgi_path_info;
     }}""")
 
