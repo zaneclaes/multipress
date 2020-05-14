@@ -295,6 +295,7 @@ if __name__ == "__main__":
 
     nginx_defaults.append(f"""
     location ~ ^/{site_name}/status$ {{
+        access_log off; # Disable logging
         opentracing off; # Disable OpenTracing
 
         include fastcgi_params;
@@ -304,6 +305,7 @@ if __name__ == "__main__":
         fastcgi_param PATH_INFO $fastcgi_path_info;
     }}
     location ~ ^/{site_name}/ping$ {{
+        access_log off; # Disable logging
         opentracing off; # Disable OpenTracing
 
         include fastcgi_params;
