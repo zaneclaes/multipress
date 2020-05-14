@@ -103,9 +103,9 @@ class Site(FileSystemEventHandler):
     nginx_cfg = [f"    {k} {nginx_cfg[k]};" for k in nginx_cfg if len(nginx_cfg[k]) > 0]
     self.cfg['nginx_server_config'] = "\n".join(nginx_cfg)
     self.append_template_config("nginx", "/etc/nginx/conf.d/%s.conf" % self.cfg['site_name'])
-    self.append_template_config("fpm", "/usr/local/etc/php-fpm.d/%s.conf" % self.cfg['site_name'])
-    self.append_template_config("docker", "/usr/local/etc/php-fpm.d/docker.conf")
-    self.append_template_config("zz-docker", "/usr/local/etc/php-fpm.d/zz-docker.conf")
+    self.append_template_config("fpm", "/usr/local/etc/php-fpm.d/zz-%s.conf" % self.cfg['site_name'])
+    # self.append_template_config("docker", "/usr/local/etc/php-fpm.d/docker.conf")
+    # self.append_template_config("zz-docker", "/usr/local/etc/php-fpm.d/zz-docker.conf")
 
   # Download any backups for this site
   def restore(self):

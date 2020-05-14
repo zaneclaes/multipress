@@ -1,2 +1,0 @@
-[{{SITE_NAME}}]
-listen = {{FPM_PORT}}

@@ -10,3 +10,12 @@ pm.max_children = 5
 pm.start_servers = 2
 pm.min_spare_servers = 2
 pm.max_spare_servers = 4
+
+access.log = {{FPM_ACCESS_LOG}}
+clear_env = no
+catch_workers_output = yes
+
+php_admin_flag[log_errors] = on
+php_admin_flag[display_errors] = off
+php_admin_value[error_reporting] = E_ALL & ~E_NOTICE & ~E_WARNING & ~E_STRICT & ~E_DEPRECATED
+php_admin_value[error_log] = {{FPM_ERROR_LOG}}
