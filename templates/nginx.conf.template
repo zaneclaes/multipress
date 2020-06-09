@@ -1,5 +1,11 @@
 server {
 {{NGINX_SERVER_CONFIG}}
+
+    gzip on;
+    gzip_disable "MSIE [1-6]\.(?!.*SV1)";
+    gzip_vary on;
+    gzip_types text/plain text/css text/javascript image/svg+xml image/x-icon application/javascript application/x-javascript;
+
     set $skip_cache 0;
 
     # POST requests and urls with a query string should always go to PHP
@@ -21,6 +27,7 @@ server {
 
     location ~* \.(eot|otf|ttf|woff|woff2)$ {
         add_header Access-Control-Allow-Origin *;
+        access_log off; log_not_found off; expires max;
     }
 
     location / {
@@ -53,7 +60,7 @@ server {
         opentracing_tag http_user_agent $http_user_agent;
         opentracing_tag skip_cache $skip_cache;
         # opentracing_tag "resource.name" "$host$fastcgi_script_name";
-        opentracing_propagate_context;
+        opentracing_fastcgi_propagate_context;
 
         fastcgi_cache_bypass $skip_cache;
             fastcgi_no_cache $skip_cache;
@@ -63,7 +70,7 @@ server {
         add_header X-Fastcgi-Cache $upstream_cache_status; # Add header so we can see if the cache hits or misses
     }
 
-    location ~* ^.+\.(ogg|ogv|svg|svgz|eot|otf|woff|mp4|ttf|rss|atom|jpg|jpeg|gif|png|ico|zip|tgz|gz|rar|bz2|doc|xls|exe|ppt|tar|mid|midi|wav|bmp|rtf)$ {
+    location ~* ^.+\.(ogg|ogv|svg|svgz|mp4|rss|atom|jpg|jpeg|gif|png|ico|zip|tgz|gz|rar|bz2|doc|xls|exe|ppt|tar|mid|midi|wav|bmp|rtf|webp|css|js)$ {
         access_log off; log_not_found off; expires max;
     }
 
