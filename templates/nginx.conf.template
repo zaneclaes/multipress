@@ -7,6 +7,7 @@ server {
     gzip_types text/plain text/css text/javascript image/svg+xml image/x-icon application/javascript application/x-javascript;
 
     set $skip_cache 0;
+    set $logged_in 0;
 
     # POST requests and urls with a query string should always go to PHP
     if ($request_method = POST) {
@@ -23,6 +24,7 @@ server {
     # Don't use the cache for logged in users or recent commenters
     if ($http_cookie ~* "comment_author|wordpress_[a-f0-9]+|wp-postpass|wordpress_no_cache|wordpress_logged_in") {
         set $skip_cache 1;
+        set $logged_in 1;
     }
 
     location ~* \.(eot|otf|ttf|woff|woff2)$ {
@@ -36,6 +38,12 @@ server {
 
     location ~ /xmlrpc\.php {
         deny all;
+    }
+
+    location ~ /purge(/.*) {
+        if ($logged_in) {
+            fastcgi_cache_purge PURGE purge_all;
+        }
     }
 
     location ~ \.php$ {
