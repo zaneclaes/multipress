@@ -257,8 +257,9 @@ default_cfg = load_config_vars({
   'nginx_default_cfg': '',
   'nginx_access_log': '/dev/stdout main',
   'nginx_error_log': '/dev/stderr warn',
-  'fpm_access_log': '/dev/stdout',
-  'fpm_error_log': '/dev/stderr',
+  # From: https://serverfault.com/questions/658367/how-to-get-php-fpm-to-log-to-stdout-stderr-when-running-in-a-docker-container
+  'fpm_access_log': '/proc/self/fd/2',
+  'fpm_error_log': '/proc/self/fd/2',
   's3_bucket': '',
   'max_upload_size': '64M',
   'restore_policy': 'missing',
@@ -300,28 +301,30 @@ if __name__ == "__main__":
     nginx_defaults.append(f"""
     location ~ ^/{site_name}/status$ {{
         access_log off; # Disable logging
-        opentracing off; # Disable OpenTracing
+        datadog_disable; # Disable OpenTracing
 
         include fastcgi_params;
         fastcgi_pass localhost:{fpm_port};
         fastcgi_param SCRIPT_FILENAME /var/www/html/{site_name}/status;
         fastcgi_param DD_TRACE_ENABLED "false";
-        fastcgi_param PATH_INFO $fastcgi_path_info;
+        # fastcgi_param PATH_INFO $fastcgi_path_info;
     }}
     location ~ ^/{site_name}/ping$ {{
         access_log off; # Disable logging
-        opentracing off; # Disable OpenTracing
+        datadog_disable; # Disable OpenTracing
 
         include fastcgi_params;
         fastcgi_pass localhost:{fpm_port};
         fastcgi_param SCRIPT_FILENAME /var/www/html/{site_name}/ping;
         fastcgi_param DD_TRACE_ENABLED "false";
-        fastcgi_param PATH_INFO $fastcgi_path_info;
+        # fastcgi_param PATH_INFO $fastcgi_path_info;
     }}""")
 
     fpm_port += 1
 
   default_cfg['nginx_default_cfg'] = "\n".join(nginx_defaults)
   replace_placeholders('/etc/nginx-default.conf', '/etc/nginx/conf.d/default.conf')
+
+  sh('echo "/tmp/coredump-%e.%p" > /proc/sys/kernel/core_pattern')
   sh('nginx -g "daemon off;" &')
   sh('exec php-fpm')

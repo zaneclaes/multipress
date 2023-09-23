@@ -40,12 +40,6 @@ server {
         deny all;
     }
 
-    location ~ /purge(/.*) {
-        if ($logged_in) {
-            fastcgi_cache_purge PURGE purge_all;
-        }
-    }
-
     location ~ \.php$ {
         try_files $uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
@@ -62,13 +56,13 @@ server {
 {{FASTCGI_PARAMS}}
         include fastcgi_params;
 
-        opentracing on; # Enable OpenTracing
-        opentracing_trace_locations off; # Emit only one span per request.
-        opentracing_operation_name "$request_method $fastcgi_script_name";
-        opentracing_tag http_user_agent $http_user_agent;
-        opentracing_tag skip_cache $skip_cache;
+        datadog_enable;
+        # datadog_trace_locations off; # Emit only one span per request.
+        datadog_operation_name "$request_method $fastcgi_script_name";
+        datadog_tag http_user_agent $http_user_agent;
+        datadog_tag skip_cache $skip_cache;
         # opentracing_tag "resource.name" "$host$fastcgi_script_name";
-        opentracing_fastcgi_propagate_context;
+        datadog_fastcgi_propagate_context;
 
         fastcgi_cache_bypass $skip_cache;
             fastcgi_no_cache $skip_cache;
