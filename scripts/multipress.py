@@ -163,7 +163,8 @@ class Site(FileSystemEventHandler):
     if not os.path.isdir(self.copy_from):
       if os.path.isdir(self.backup_path):
         self.logger.info(f'Copying backup dir {self.backup_path} to persistant {self.cfg['copy_from']}/...')
-        sh(f'cp -r {self.backup_path} {self.cfg['copy_from']}/')
+        # -a preserves mtimes so unison's fastcheck doesn't treat every file as modified
+        sh(f'cp -a {self.backup_path} {self.cfg['copy_from']}/')
         self.logger.info(f'Fixing permissions on persistant {self.cfg['copy_from']}/...')
         sh(f'chown -R www-data:www-data {self.cfg['copy_from']}')
       else:
@@ -171,9 +172,16 @@ class Site(FileSystemEventHandler):
         return
 
     self.logger.info(f'Copying persistant dir {self.copy_from} to ephemeral {self.cfg['www_root']}/...')
-    sh(f'cp -r {self.copy_from} {self.cfg['www_root']}/')
+    sh(f'cp -a {self.copy_from} {self.cfg['www_root']}/')
     self.logger.info(f'Fixing permissions on ephemeral {self.cfg['www_root']}/...')
     sh(f'chown -R www-data:www-data {self.cfg['site_dir']}')
+
+    # Clear transient WordPress updater state that a backup may have captured
+    # mid-update: a stale .maintenance file 503s the whole site, and the upgrade
+    # dirs are half-written plugin copies that must never be served or re-synced.
+    sh(f'rm -rf {self.cfg['site_dir']}/.maintenance'
+       f' {self.cfg['site_dir']}/wp-content/upgrade'
+       f' {self.cfg['site_dir']}/wp-content/upgrade-temp-backup')
 
     mode = self.cfg['restore_mode'].lower()
     policy = self.cfg['restore_policy'].lower()

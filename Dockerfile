@@ -19,6 +19,12 @@ COPY templates/ /usr/local/etc/templates
 COPY conf-php-fpm/ /usr/local/etc/php-fpm.d
 COPY dd-config.json /etc/
 
+# Pre-build the python venv used by entrypoint.sh so container boot does not
+# depend on PyPI and cold start stays fast.
+RUN python -m venv /opt/venv && \
+    . /opt/venv/bin/activate && \
+    pip install --upgrade pyyaml awscli s3cmd watchdog python-magic
+
 COPY scripts /usr/local/bin/
 RUN chmod +x /usr/local/bin/multipress.py
 RUN chmod +x /usr/local/bin/sync.sh
