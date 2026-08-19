@@ -1,10 +1,9 @@
 server {
 {{NGINX_SERVER_CONFIG}}
 
-    gzip on;
-    gzip_disable "MSIE [1-6]\.(?!.*SV1)";
-    gzip_vary on;
-    gzip_types text/plain text/css text/javascript image/svg+xml image/x-icon application/javascript application/x-javascript;
+# ------------------------------------------------
+# PREFLIGHT SET VARS BEFORE REWRITES
+# ------------------------------------------------
 
     set $skip_cache 0;
     set $logged_in 0;
@@ -13,24 +12,45 @@ server {
     if ($request_method = POST) {
         set $skip_cache 1;
     }
-    if ($query_string != "") {
+
+    # Specific query strings that should never be cached
+    if ($query_string ~* "(.*)add-to-cart(.*)") {
         set $skip_cache 1;
     }
+
     # Don't cache uris containing the following segments
-    if ($request_uri ~* "/wp-admin/|/xmlrpc.php|wp-.*.php|/feed/|index.php|sitemap(_index)?.xml") {
+    if ($request_uri ~* "{{DO_NOT_CACHE_PATHS}}") {
+        set $skip_cache 1;
+    }
+    if ($request_uri ~* "^/(xmlrpc|wp-.*)\.php") {
         set $skip_cache 1;
     }
 
     # Don't use the cache for logged in users or recent commenters
-    if ($http_cookie ~* "comment_author|wordpress_[a-f0-9]+|wp-postpass|wordpress_no_cache|wordpress_logged_in") {
+    if ($http_cookie ~* "wordpress_logged_in") {
         set $skip_cache 1;
         set $logged_in 1;
     }
 
-    location ~* \.(eot|otf|ttf|woff|woff2)$ {
-        add_header Access-Control-Allow-Origin *;
-        access_log off; log_not_found off; expires max;
+    if ($http_cookie ~* "{{DO_NOT_CACHE_COOKIES}}") {
+        set $skip_cache 1;
     }
+
+# ------------------------------------------------
+# INCLUDE SITE-SPECIFIC FILE
+# ------------------------------------------------
+
+    {{INCLUDES}}
+
+# ------------------------------------------------
+# REWRITE & SERVE
+# ------------------------------------------------
+    rewrite ^/sitemap_index\.xml$ /index.php?sitemap=1 last;
+    rewrite ^/([^/]+?)-sitemap([0-9]+)?.xml$ /index.php?sitemap=$1&sitemap_n=$2 last;
+    rewrite ^/robots\.txt$ /index.php?robots=1 last;
+
+    rewrite ^/shop/([^/^\?]+)/([^/^\?]+)/([^/^\?]+)/?\??(.*)? /index.php?product=$1&attribute_pa_$2=$3&$4 last;
+    rewrite ^/shop/([^/^\?]+)/([^/^\?]+)/([^/^\?]+)/([^/^\?]+)/([^/^\?]+)/?\??(.*)? /index.php?product=$1&attribute_pa_$2=$3&attribute_pa_$4=$5&$6 last;
 
     location / {
         try_files $uri $uri/ /index.php?$args;
@@ -58,9 +78,15 @@ server {
 
         datadog_enable;
         # datadog_trace_locations off; # Emit only one span per request.
-        datadog_operation_name "$request_method $fastcgi_script_name";
-        datadog_tag http_user_agent $http_user_agent;
-        datadog_tag skip_cache $skip_cache;
+        datadog_operation_name "$request_method $request_uri_path"; # fastcgi_script_name
+        datadog_tag nginx.request_id $request_id;
+        datadog_tag nginx.http_user_agent $http_user_agent;
+        datadog_tag nginx.skip_cache $skip_cache;
+        datadog_tag nginx.logged_in $logged_in;
+        datadog_tag nginx.filename $request_filename;
+        datadog_tag nginx.uri $uri;
+        datadog_tag nginx.request_uri $request_uri;
+        datadog_tag nginx.request_uri_path $request_uri_path;
         # opentracing_tag "resource.name" "$host$fastcgi_script_name";
         datadog_fastcgi_propagate_context;
 
@@ -68,11 +94,19 @@ server {
             fastcgi_no_cache $skip_cache;
 
         fastcgi_cache multipress;
-        fastcgi_cache_valid 200 301 302 30m; # What to cache: 'Code 200' responses, for half an hour
-        add_header X-Fastcgi-Cache $upstream_cache_status; # Add header so we can see if the cache hits or misses
+        fastcgi_cache_key "$scheme$request_method$host$request_uri_path";
+        fastcgi_param HTTP_IF_NONE_MATCH $http_if_none_match;
+        fastcgi_param HTTP_IF_MODIFIED_SINCE $http_if_modified_since;
+        fastcgi_cache_valid {{CACHE_CODES}} {{CACHE_DUR}}; # What to cache: 'Code 200' responses
+        fastcgi_cache_revalidate on; # Check upstream modification
+        add_header X-Fastcgi-Cache $upstream_cache_status;
+        {{HEADERS}}
     }
 
-    location ~* ^.+\.(ogg|ogv|svg|svgz|mp4|rss|atom|jpg|jpeg|gif|png|ico|zip|tgz|gz|rar|bz2|doc|xls|exe|ppt|tar|mid|midi|wav|bmp|rtf|webp|css|js)$ {
+    # Serve static files, allowed from CDN
+    location ~* ^.+\.{{STATIC_FILES}}$ {
+        add_header Access-Control-Allow-Origin *;
+        {{HEADERS}}
         access_log off; log_not_found off; expires max;
     }
 
